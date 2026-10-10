@@ -46,9 +46,9 @@ use crate::{
     },
     config::{HyperliquidDataClientConfig, HyperliquidExecutionClientConfig},
     data_types::{
-        HyperliquidAllDexsAssetCtxs, HyperliquidAllMids, HyperliquidOpenInterest,
-        HyperliquidPublicTrade, HyperliquidTwapHistory, HyperliquidTwapSliceFill,
-        register_hyperliquid_custom_data,
+        HyperliquidAllDexsAssetCtxs, HyperliquidAllMids, HyperliquidHip3FeeSchedule,
+        HyperliquidOpenInterest, HyperliquidPositionRisk, HyperliquidPublicTrade,
+        HyperliquidTwapHistory, HyperliquidTwapSliceFill, register_hyperliquid_custom_data,
     },
     factories::{HyperliquidDataClientFactory, HyperliquidExecutionClientFactory},
     http::{HyperliquidHttpClient, models::Cloid},
@@ -237,6 +237,8 @@ pub fn hyperliquid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<HyperliquidExecutionClientFactory>()?;
     m.add_class::<HyperliquidAllDexsAssetCtxs>()?;
     m.add_class::<HyperliquidAllMids>()?;
+    m.add_class::<HyperliquidPositionRisk>()?;
+    m.add_class::<HyperliquidHip3FeeSchedule>()?;
     m.add_class::<HyperliquidOpenInterest>()?;
     m.add_class::<HyperliquidPublicTrade>()?;
     m.add_class::<HyperliquidTwapHistory>()?;
@@ -249,6 +251,17 @@ pub fn hyperliquid(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let _result = ensure_rust_extractor_registered::<HyperliquidPublicTrade>();
     let _result = ensure_rust_extractor_registered::<HyperliquidTwapHistory>();
     let _result = ensure_rust_extractor_registered::<HyperliquidTwapSliceFill>();
+    let _result = ensure_rust_extractor_registered::<HyperliquidHip3FeeSchedule>();
+    // Python 侧构造的 custom data 需要把 extractor 实例化进 py_extractors，
+    // 否则 CustomData(data_type, obj) 会退回 PythonCustomDataWrapper，无法写 catalog。
+    if let Some(extractor) =
+        nautilus_model::data::registry::get_rust_extractor("HyperliquidHip3FeeSchedule")
+    {
+        let _ = nautilus_model::data::registry::ensure_py_extractor_registered(
+            "HyperliquidHip3FeeSchedule",
+            extractor,
+        );
+    }
 
     let registry = get_global_pyo3_registry();
 

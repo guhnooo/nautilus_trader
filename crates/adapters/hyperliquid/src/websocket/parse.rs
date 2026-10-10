@@ -470,6 +470,21 @@ pub fn parse_ws_fill_report(
     ))
 }
 
+fn next_funding_boundary(ts_event: UnixNanos, interval_mins: u16) -> UnixNanos {
+    if interval_mins == 0 {
+        return ts_event;
+    }
+    let interval_ns = u64::from(interval_mins) * 60 * 1_000_000_000;
+    let ts = ts_event.as_u64();
+    let remainder = ts % interval_ns;
+    let boundary = if remainder == 0 {
+        ts + interval_ns
+    } else {
+        ts + (interval_ns - remainder)
+    };
+    UnixNanos::from(boundary)
+}
+
 /// Parses a WebSocket ActiveAssetCtx message into mark price, index price, and funding rate updates.
 ///
 /// This converts Hyperliquid asset context data into Nautilus price and funding rate updates.
@@ -500,7 +515,7 @@ pub fn parse_ws_asset_context(
                 instrument_id,
                 ctx.funding,
                 Some(60), // Hyperliquid exchanges funding hourly
-                None,     // Hyperliquid doesn't provide next funding time in this message
+                Some(next_funding_boundary(ts_init, 60)),
                 ts_init,
                 ts_init,
             );
@@ -1087,7 +1102,7 @@ mod tests {
     #[rstest]
     fn test_parse_ws_asset_context_perp() {
         let instrument = create_test_instrument();
-        let ts_init = UnixNanos::default();
+        let ts_init = UnixNanos::from(1_704_470_400_123_000_000);
 
         let ctx_data = WsActiveAssetCtxData::Perp {
             coin: Ustr::from("BTC"),
@@ -1125,6 +1140,22 @@ mod tests {
         assert_eq!(funding.instrument_id, instrument.id());
         assert_eq!(funding.rate.to_string(), "0.0001");
         assert_eq!(funding.interval, Some(60));
+        assert_eq!(
+            funding.next_funding_ns,
+            Some(UnixNanos::from(1_704_474_000_000_000_000))
+        );
+    }
+
+    #[rstest]
+    fn test_next_funding_boundary_rounds_up_and_strictly_advances() {
+        assert_eq!(
+            next_funding_boundary(UnixNanos::from(3_599_000_000_000), 60),
+            UnixNanos::from(3_600_000_000_000)
+        );
+        assert_eq!(
+            next_funding_boundary(UnixNanos::from(3_600_000_000_000), 60),
+            UnixNanos::from(7_200_000_000_000)
+        );
     }
 
     #[rstest]

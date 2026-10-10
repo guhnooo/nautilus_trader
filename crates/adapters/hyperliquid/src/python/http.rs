@@ -203,6 +203,24 @@ impl HyperliquidHttpClient {
         })
     }
 
+    /// 通过公开 Python 方法异步设置 leverage。
+    #[pyo3(name = "set_leverage", signature = (instrument_id, leverage, is_cross=false))]
+    fn py_set_leverage<'py>(
+        &self,
+        py: Python<'py>,
+        instrument_id: InstrumentId,
+        leverage: u32,
+        is_cross: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            client
+                .update_leverage(instrument_id, leverage, is_cross)
+                .await
+                .map_err(to_pyvalue_err)
+        })
+    }
+
     #[pyo3(name = "load_instrument_definitions", signature = (include_spot=true, include_perps=true, include_perps_hip3=false, include_outcomes=false))]
     fn py_load_instrument_definitions<'py>(
         &self,
@@ -851,6 +869,20 @@ impl HyperliquidHttpClient {
             let account_address = client.get_account_address().map_err(to_pyvalue_err)?;
             let json = client
                 .info_spot_clearinghouse_state(&account_address)
+                .await
+                .map_err(to_pyvalue_err)?;
+            to_string(&json).map_err(to_pyvalue_err)
+        })
+    }
+
+    /// 获取指定 HIP-3 dex 的 market metadata。
+    #[pyo3(name = "info_meta_for_dex")]
+    fn py_info_meta_for_dex<'py>(&self, py: Python<'py>, dex: &str) -> PyResult<Bound<'py, PyAny>> {
+        let client = self.clone();
+        let dex = dex.to_string();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let json = client
+                .info_meta_for_dex(&dex)
                 .await
                 .map_err(to_pyvalue_err)?;
             to_string(&json).map_err(to_pyvalue_err)

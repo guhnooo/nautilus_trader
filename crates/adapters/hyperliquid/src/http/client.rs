@@ -416,6 +416,22 @@ impl HyperliquidRawHttpClient {
         serde_json::from_value(response).map_err(Error::Serde)
     }
 
+    /// Get metadata for a specific HIP-3 dex.
+    pub async fn info_meta_for_dex(&self, dex: &str) -> Result<Value> {
+        log::debug!("Hyperliquid info_meta_for_dex request: dex={dex}");
+        let request = InfoRequest::meta_for_dex(dex);
+        match self.send_info_request(&request).await {
+            Ok(value) => {
+                log::debug!("Hyperliquid info_meta_for_dex succeeded: dex={dex}");
+                Ok(value)
+            }
+            Err(error) => {
+                log::error!("Hyperliquid info_meta_for_dex failed: dex={dex}, error={error}");
+                Err(error)
+            }
+        }
+    }
+
     /// Get complete spot metadata (tokens and pairs).
     pub async fn get_spot_meta(&self) -> Result<SpotMeta> {
         let request = InfoRequest::spot_meta();
@@ -1861,6 +1877,11 @@ impl HyperliquidHttpClient {
         self.inner.info_user_fees(user).await
     }
 
+    /// Get metadata for a specific HIP-3 dex.
+    pub async fn info_meta_for_dex(&self, dex: &str) -> Result<Value> {
+        self.inner.info_meta_for_dex(dex).await
+    }
+
     /// Get candle/bar data for a coin.
     pub async fn info_candle_snapshot(
         &self,
@@ -2007,6 +2028,55 @@ impl HyperliquidHttpClient {
     }
 
     /// Modify an order on the Hyperliquid exchange.
+    /// 设置 Hyperliquid 永续杠杆。
+    ///
+    /// 第一版仅允许 isolated margin，调用方必须传 `is_cross=false`。
+    pub async fn update_leverage(
+        &self,
+        instrument_id: InstrumentId,
+        leverage: u32,
+        is_cross: bool,
+    ) -> Result<()> {
+        log::info!(
+            "Hyperliquid update_leverage request: instrument_id={instrument_id}, leverage={leverage}, is_cross={is_cross}"
+        );
+        let symbol = instrument_id.symbol.inner();
+        let Some(asset) = self.get_asset_index_for_symbol(symbol) else {
+            log::error!(
+                "Hyperliquid update_leverage asset missing: instrument_id={instrument_id}, symbol={symbol}"
+            );
+            return Err(Error::bad_request(format!(
+                "Asset index not found for symbol: {symbol}. Ensure instruments are loaded."
+            )));
+        };
+        let action = ExchangeAction::update_leverage(asset, is_cross, leverage);
+        let response = self.post_action(&action).await?;
+        match response {
+            ref r @ HyperliquidExchangeResponse::Status { .. } if r.is_ok() => {
+                log::info!(
+                    "Hyperliquid update_leverage succeeded: instrument_id={instrument_id}, leverage={leverage}, is_cross={is_cross}"
+                );
+                Ok(())
+            }
+            HyperliquidExchangeResponse::Status { status, response } => {
+                log::error!(
+                    "Hyperliquid update_leverage rejected: instrument_id={instrument_id}, leverage={leverage}, status={status}, response={response}"
+                );
+                Err(Error::bad_request(format!(
+                    "Update leverage failed: status={status}, response={response}"
+                )))
+            }
+            HyperliquidExchangeResponse::Error { error } => {
+                log::error!(
+                    "Hyperliquid update_leverage error: instrument_id={instrument_id}, leverage={leverage}, error={error}"
+                );
+                Err(Error::bad_request(format!(
+                    "Update leverage error: {error}"
+                )))
+            }
+        }
+    }
+
     ///
     /// The HL modify API requires a full replacement order spec plus a venue
     /// order ID or cached CLOID target. The caller must provide all order fields.

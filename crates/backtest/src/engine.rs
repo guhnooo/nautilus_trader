@@ -1888,6 +1888,10 @@ impl BacktestEngine {
         settlement_ns: UnixNanos,
     ) -> anyhow::Result<()> {
         let timer_name = Self::funding_settlement_timer_name(venue);
+        if clock.borrow().next_time_ns(&timer_name) == Some(settlement_ns) {
+            return Ok(());
+        }
+
         let callback: Rc<dyn Fn(TimeEvent)> = Rc::new(|_| {});
         let mut clock = clock.borrow_mut();
 

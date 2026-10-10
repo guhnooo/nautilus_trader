@@ -943,11 +943,24 @@ impl DataClient for HyperliquidDataClient {
 
         let ws = self.ws_client.clone();
         let instrument_id = subscription.instrument_id;
-        let (n_sig_figs, mantissa) = parse_book_precision_params(subscription.params.as_ref())?;
+        let (n_sig_figs, mantissa, fast) = match parse_book_precision_params(
+            subscription.params.as_ref(),
+        ) {
+            Ok(options) => options,
+            Err(error) => {
+                log::error!(
+                    "Hyperliquid invalid book-deltas params: instrument_id={instrument_id}, error={error}"
+                );
+                return Err(error);
+            }
+        };
+        log::debug!(
+            "Hyperliquid subscribing book deltas: instrument_id={instrument_id}, n_sig_figs={n_sig_figs:?}, mantissa={mantissa:?}, fast={fast:?}"
+        );
         self.register_stream_health(MarketDataChannel::Deltas, instrument_id);
 
         self.spawn_task("subscribe_book_deltas", async move {
-            ws.subscribe_book_with_options(instrument_id, n_sig_figs, mantissa)
+            ws.subscribe_book_with_options(instrument_id, n_sig_figs, mantissa, fast)
                 .await
         });
 
@@ -966,11 +979,24 @@ impl DataClient for HyperliquidDataClient {
 
         let ws = self.ws_client.clone();
         let instrument_id = subscription.instrument_id;
-        let (n_sig_figs, mantissa) = parse_book_precision_params(subscription.params.as_ref())?;
+        let (n_sig_figs, mantissa, fast) = match parse_book_precision_params(
+            subscription.params.as_ref(),
+        ) {
+            Ok(options) => options,
+            Err(error) => {
+                log::error!(
+                    "Hyperliquid invalid depth10 params: instrument_id={instrument_id}, error={error}"
+                );
+                return Err(error);
+            }
+        };
+        log::debug!(
+            "Hyperliquid subscribing depth10: instrument_id={instrument_id}, n_sig_figs={n_sig_figs:?}, mantissa={mantissa:?}, fast={fast:?}"
+        );
         self.register_stream_health(MarketDataChannel::Depth10, instrument_id);
 
         self.spawn_task("subscribe_book_depth10", async move {
-            ws.subscribe_book_depth10_with_options(instrument_id, n_sig_figs, mantissa)
+            ws.subscribe_book_depth10_with_options(instrument_id, n_sig_figs, mantissa, fast)
                 .await
         });
 
@@ -2292,13 +2318,13 @@ pub(crate) fn parse_l2_book_snapshot(
     book
 }
 
-// Reads optional `nSigFigs` / `mantissa` L2 precision controls from
-// `subscribe_params`; bails on non-positive integer values.
+// Reads optional `nSigFigs` / `mantissa` precision controls and `fast` mode from
+// `subscribe_params`; bails on invalid values.
 pub(crate) fn parse_book_precision_params(
     params: Option<&Params>,
-) -> anyhow::Result<(Option<u32>, Option<u32>)> {
+) -> anyhow::Result<(Option<u32>, Option<u32>, Option<bool>)> {
     let Some(params) = params else {
-        return Ok((None, None));
+        return Ok((None, None, None));
     };
 
     let read_u32 = |key: &str| -> anyhow::Result<Option<u32>> {
@@ -2311,8 +2337,21 @@ pub(crate) fn parse_book_precision_params(
                 .map(Some),
         }
     };
+    let read_bool = |key: &str| -> anyhow::Result<Option<bool>> {
+        match params.get(key) {
+            None => Ok(None),
+            Some(v) => v
+                .as_bool()
+                .ok_or_else(|| anyhow::anyhow!("`{key}` must be a boolean"))
+                .map(Some),
+        }
+    };
 
-    Ok((read_u32("n_sig_figs")?, read_u32("mantissa")?))
+    Ok((
+        read_u32("n_sig_figs")?,
+        read_u32("mantissa")?,
+        read_bool("fast")?,
+    ))
 }
 
 // Hyperliquid funds perpetuals hourly, so `interval` is fixed at 60 mins;
@@ -2323,7 +2362,7 @@ pub(crate) fn funding_entry_to_update(
 ) -> FundingRateUpdate {
     let rate = entry.funding_rate;
     let ts = UnixNanos::from(entry.time * 1_000_000);
-    FundingRateUpdate::new(instrument_id, rate, Some(60), None, ts, ts)
+    FundingRateUpdate::new(instrument_id, rate, Some(60), Some(ts), ts, ts)
 }
 
 pub(crate) fn candle_to_bar(
@@ -2930,7 +2969,7 @@ mod tests {
         assert_eq!(update.instrument_id, instrument_id);
         assert_eq!(update.rate, dec!(0.0000125));
         assert_eq!(update.interval, Some(60));
-        assert!(update.next_funding_ns.is_none());
+        assert_eq!(update.next_funding_ns, Some(update.ts_event));
         assert_eq!(update.ts_event, UnixNanos::from(1769908800000 * 1_000_000));
         assert_eq!(update.ts_init, update.ts_event);
     }
@@ -2957,9 +2996,10 @@ mod tests {
 
     #[rstest]
     fn test_parse_book_precision_params_none() {
-        let (n, m) = parse_book_precision_params(None).unwrap();
+        let (n, m, fast) = parse_book_precision_params(None).unwrap();
         assert_eq!(n, None);
         assert_eq!(m, None);
+        assert_eq!(fast, None);
     }
 
     fn make_params(json: serde_json::Value) -> Params {
@@ -2969,17 +3009,26 @@ mod tests {
     #[rstest]
     fn test_parse_book_precision_params_only_n_sig_figs() {
         let params = make_params(serde_json::json!({"n_sig_figs": 4}));
-        let (n, m) = parse_book_precision_params(Some(&params)).unwrap();
+        let (n, m, fast) = parse_book_precision_params(Some(&params)).unwrap();
         assert_eq!(n, Some(4));
         assert_eq!(m, None);
+        assert_eq!(fast, None);
     }
 
     #[rstest]
     fn test_parse_book_precision_params_both() {
-        let params = make_params(serde_json::json!({"n_sig_figs": 5, "mantissa": 2}));
-        let (n, m) = parse_book_precision_params(Some(&params)).unwrap();
+        let params = make_params(serde_json::json!({"n_sig_figs": 5, "mantissa": 2, "fast": true}));
+        let (n, m, fast) = parse_book_precision_params(Some(&params)).unwrap();
         assert_eq!(n, Some(5));
         assert_eq!(m, Some(2));
+        assert_eq!(fast, Some(true));
+    }
+
+    #[rstest]
+    fn test_parse_book_precision_params_rejects_non_bool_fast() {
+        let params = make_params(serde_json::json!({"fast": "yes"}));
+        let err = parse_book_precision_params(Some(&params)).unwrap_err();
+        assert!(err.to_string().contains("fast"));
     }
 
     #[rstest]

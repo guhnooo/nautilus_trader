@@ -106,6 +106,8 @@ nautilus-derive = { path = "crates/adapters/derive", version = "0.64.0", default
 nautilus-dydx = { path = "crates/adapters/dydx", version = "0.64.0", default-features = false }
 nautilus-hyperliquid = { path = "crates/adapters/hyperliquid", version = "0.64.0", default-features = false }
 nautilus-interactive-brokers = { path = "crates/adapters/interactive_brokers", version = "0.64.0" }
+nautilus-futu = { path = "../../adapters/futu/crates/futu", version = "0.4.2" }
+nautilus-qmt = { path = "../../adapters/qmt/crates/qmt", version = "0.1.0" }
 nautilus-kraken = { path = "crates/adapters/kraken", version = "0.64.0", default-features = false }
 nautilus-lighter = { path = "crates/adapters/lighter", version = "0.64.0", default-features = false }
 nautilus-okx = { path = "crates/adapters/okx", version = "0.64.0", default-features = false }

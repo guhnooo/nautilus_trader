@@ -130,6 +130,12 @@ pub struct OpenOrdersParams {
     pub dex: Option<String>,
 }
 
+/// Parameters for a HIP-3 dex-specific metadata request.
+#[derive(Debug, Clone, Serialize)]
+pub struct MetaParams {
+    pub dex: String,
+}
+
 /// Parameters for clearinghouse state request.
 #[derive(Debug, Clone, Serialize)]
 pub struct ClearinghouseStateParams {
@@ -174,6 +180,7 @@ pub struct FundingHistoryParams {
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum InfoRequestParams {
+    Meta(MetaParams),
     L2Book(L2BookParams),
     RecentTrades(RecentTradesParams),
     UserFills(UserFillsParams),
@@ -201,6 +208,16 @@ impl InfoRequest {
         Self {
             request_type: HyperliquidInfoRequestType::Meta,
             params: InfoRequestParams::None,
+        }
+    }
+
+    /// Creates a request to get metadata for a specific HIP-3 dex.
+    pub fn meta_for_dex(dex: &str) -> Self {
+        Self {
+            request_type: HyperliquidInfoRequestType::Meta,
+            params: InfoRequestParams::Meta(MetaParams {
+                dex: dex.to_string(),
+            }),
         }
     }
 

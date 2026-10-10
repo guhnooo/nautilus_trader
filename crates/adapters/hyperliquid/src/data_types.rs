@@ -277,6 +277,57 @@ pub struct HyperliquidTwapSliceFill {
     pub ts_init: UnixNanos,
 }
 
+/// HIP-3 单个 instrument 的有效费率（adapter 出口的领域类型）。
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct HyperliquidHip3FeeEntry {
+    /// HIP-3 perp instrument。
+    pub instrument_id: String,
+    /// dex 前缀后的 coin 名。
+    pub coin: String,
+    /// deployerFeeScale 原值。
+    pub deployer_fee_scale: rust_decimal::Decimal,
+    /// 是否处于 growth mode。
+    pub growth_mode: bool,
+    /// lastFeeScaleChangeTime（venue 原样字符串）。
+    pub last_fee_scale_change_time: Option<String>,
+    /// 按官方公式算出的有效 taker 费率。
+    pub effective_taker_rate: rust_decimal::Decimal,
+    /// 按官方公式算出的有效 maker 费率。
+    pub effective_maker_rate: rust_decimal::Decimal,
+}
+
+/// 一个 HIP-3 dex 的完整费率快照（Nautilus 领域类型 + custom data）。
+#[cfg_attr(
+    feature = "arrow",
+    custom_data(pyo3, stub_module = "nautilus_trader.adapters.hyperliquid")
+)]
+#[cfg_attr(
+    not(feature = "arrow"),
+    custom_data(pyo3, no_arrow, stub_module = "nautilus_trader.adapters.hyperliquid")
+)]
+pub struct HyperliquidHip3FeeSchedule {
+    /// HIP-3 dex 名（例如 `xyz`）。
+    pub dex: String,
+    /// 账户级 userCrossRate。
+    #[custom_data_field(serde)]
+    pub user_taker_rate: rust_decimal::Decimal,
+    /// 账户级 userAddRate。
+    #[custom_data_field(serde)]
+    pub user_maker_rate: rust_decimal::Decimal,
+    /// activeReferralDiscount。
+    #[custom_data_field(serde)]
+    pub active_referral_discount: rust_decimal::Decimal,
+    /// 逐标的有效费率（变长列表，按 Nautilus 惯例走 serde 列）。
+    #[custom_data_field(serde)]
+    pub entries: Vec<HyperliquidHip3FeeEntry>,
+    /// 事件时间。
+    pub ts_event: UnixNanos,
+    /// 初始化时间。
+    pub ts_init: UnixNanos,
+    /// 数据来源说明。
+    pub source: String,
+}
+
 /// Registers Hyperliquid custom data types.
 ///
 /// Safe to call multiple times (idempotent via internal `Once` guards).
@@ -288,6 +339,7 @@ pub fn register_hyperliquid_custom_data() {
         nautilus_serialization::ensure_custom_data_registered::<HyperliquidPublicTrade>();
         nautilus_serialization::ensure_custom_data_registered::<HyperliquidTwapHistory>();
         nautilus_serialization::ensure_custom_data_registered::<HyperliquidTwapSliceFill>();
+        nautilus_serialization::ensure_custom_data_registered::<HyperliquidHip3FeeSchedule>();
     }
 
     #[cfg(not(feature = "arrow"))]
@@ -301,10 +353,53 @@ pub fn register_hyperliquid_custom_data() {
             nautilus_model::data::ensure_custom_data_json_registered::<HyperliquidTwapHistory>();
         let _ =
             nautilus_model::data::ensure_custom_data_json_registered::<HyperliquidTwapSliceFill>();
+        let _ = nautilus_model::data::ensure_custom_data_json_registered::<
+            HyperliquidHip3FeeSchedule,
+        >();
     }
 
+    let _ = nautilus_model::data::ensure_custom_data_json_registered::<HyperliquidPositionRisk>();
     let _ =
         nautilus_model::data::ensure_custom_data_json_registered::<HyperliquidAllDexsAssetCtxs>();
+}
+
+/// Hyperliquid 仓位风险快照。
+#[cfg_attr(
+    feature = "arrow",
+    custom_data(pyo3, stub_module = "nautilus_trader.adapters.hyperliquid")
+)]
+#[cfg_attr(
+    not(feature = "arrow"),
+    custom_data(pyo3, no_arrow, stub_module = "nautilus_trader.adapters.hyperliquid")
+)]
+pub struct HyperliquidPositionRisk {
+    /// 永续 instrument ID。
+    pub instrument_id: InstrumentId,
+    /// 当前带符号仓位数量。
+    #[custom_data_field(serde)]
+    pub position_qty: Decimal,
+    /// 当前仓位平均入场价。
+    #[custom_data_field(serde)]
+    pub entry_price: Option<Decimal>,
+    /// venue 报告的强平价。
+    #[custom_data_field(serde)]
+    pub liquidation_price: Option<Decimal>,
+    /// 已占用保证金。
+    #[custom_data_field(serde)]
+    pub margin_used: Decimal,
+    /// 账户权益。
+    #[custom_data_field(serde)]
+    pub account_value: Decimal,
+    /// 当前可提取金额。
+    #[custom_data_field(serde)]
+    pub withdrawable: Decimal,
+    /// venue 累计 funding。
+    #[custom_data_field(serde)]
+    pub cumulative_funding: Decimal,
+    /// 事件时间。
+    pub ts_event: UnixNanos,
+    /// 初始化时间。
+    pub ts_init: UnixNanos,
 }
 
 #[cfg(test)]

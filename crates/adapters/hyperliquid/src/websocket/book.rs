@@ -41,6 +41,7 @@ pub(crate) enum BookStreamUse {
 pub(crate) struct BookStreamOptions {
     pub n_sig_figs: Option<u32>,
     pub mantissa: Option<u32>,
+    pub fast: Option<bool>,
 }
 
 /// Outcome of registering a logical use: whether a venue subscribe should be
@@ -161,6 +162,7 @@ mod tests {
         BookStreamOptions {
             n_sig_figs,
             mantissa,
+            fast: None,
         }
     }
 
@@ -188,6 +190,28 @@ mod tests {
         assert!(!registration.subscribe);
         assert!(registration.options_mismatch);
         assert_eq!(registration.options, options(Some(5), Some(2)));
+    }
+
+    #[rstest]
+    fn fast_option_participates_in_stream_registration() {
+        let registry = BookStreamRegistry::default();
+        let coin = Ustr::from("BTC");
+        let fast = BookStreamOptions {
+            n_sig_figs: Some(5),
+            mantissa: None,
+            fast: Some(true),
+        };
+
+        assert!(
+            registry
+                .register(coin, BookStreamUse::Depth10, fast)
+                .subscribe
+        );
+
+        let registration = registry.register(coin, BookStreamUse::Deltas, options(Some(5), None));
+        assert!(!registration.subscribe);
+        assert!(registration.options_mismatch);
+        assert_eq!(registration.options, fast);
     }
 
     #[rstest]

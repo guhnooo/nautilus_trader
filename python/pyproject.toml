@@ -47,18 +47,7 @@ build-backend = "maturin"
 manifest-path = "../crates/pyo3/Cargo.toml"
 module-name = "nautilus_trader._libnautilus"
 python-source = "."
-features = [
-  "extension-module",
-  "arrow",
-  "betfair",
-  "high-precision",
-  "mimalloc",
-  "redis",
-  "postgres",
-  "defi",
-  "hypersync",
-  "tracing-bridge",
-]
+features = ["quant-runtime"]
 strip = false
 
 include = ["**/*.pyi"]

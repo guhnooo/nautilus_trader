@@ -848,6 +848,10 @@ pub fn create_instrument_from_def(
                     .size_precision(def.size_decimals as u8)
                     .price_increment(price_increment)
                     .size_increment(size_increment)
+                    // Hyperliquid 线性永续以 base 单位计价；官方 meta（含 HIP-3 dex）
+                    // 不暴露 contract size/multiplier 字段，乘数按构造为 1，此处显式声明，
+                    // 不依赖 CryptoPerpetual builder 的隐式默认值。
+                    .multiplier(Quantity::from(1))
                     .maybe_min_notional(min_notional)
                     .info(info_with_asset_index(None, def.asset_index))
                     // Identical to ts_init for now

@@ -46,6 +46,7 @@
 //! - `tracing-bridge`: Enables the `tracing` subscriber bridge for log integration.
 
 #![warn(rustc::all)]
+#![allow(linker_messages)] // nautilus-futu overlay: macOS eh_frame vs build.warnings=deny
 #![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(nonstandard_style)]
@@ -194,10 +195,13 @@ fn _libnautilus(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Adapters
     ////////////////////////////////////////////////////////////////////////////////
 
-    let n = "architect_ax";
-    let submodule = pyo3::wrap_pymodule!(nautilus_architect_ax::python::architect_ax);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "architect-ax")]
+    {
+        let n = "architect_ax";
+        let submodule = pyo3::wrap_pymodule!(nautilus_architect_ax::python::architect_ax);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
     #[cfg(feature = "betfair")]
     {
@@ -207,85 +211,138 @@ fn _libnautilus(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
     }
 
-    let n = "binance";
-    let submodule = pyo3::wrap_pymodule!(nautilus_binance::python::binance);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "binance")]
+    {
+        let n = "binance";
+        let submodule = pyo3::wrap_pymodule!(nautilus_binance::python::binance);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "bitmex";
-    let submodule = pyo3::wrap_pymodule!(nautilus_bitmex::python::bitmex);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "bitmex")]
+    {
+        let n = "bitmex";
+        let submodule = pyo3::wrap_pymodule!(nautilus_bitmex::python::bitmex);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "bybit";
-    let submodule = pyo3::wrap_pymodule!(nautilus_bybit::python::bybit);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "bybit")]
+    {
+        let n = "bybit";
+        let submodule = pyo3::wrap_pymodule!(nautilus_bybit::python::bybit);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "coinbase";
-    let submodule = pyo3::wrap_pymodule!(nautilus_coinbase::python::coinbase);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "coinbase")]
+    {
+        let n = "coinbase";
+        let submodule = pyo3::wrap_pymodule!(nautilus_coinbase::python::coinbase);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "databento";
-    let submodule = pyo3::wrap_pymodule!(nautilus_databento::python::databento);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "databento")]
+    {
+        let n = "databento";
+        let submodule = pyo3::wrap_pymodule!(nautilus_databento::python::databento);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "deribit";
-    let submodule = pyo3::wrap_pymodule!(nautilus_deribit::python::deribit);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "deribit")]
+    {
+        let n = "deribit";
+        let submodule = pyo3::wrap_pymodule!(nautilus_deribit::python::deribit);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "derive";
-    let submodule = pyo3::wrap_pymodule!(nautilus_derive::python::derive);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "derive")]
+    {
+        let n = "derive";
+        let submodule = pyo3::wrap_pymodule!(nautilus_derive::python::derive);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "dydx";
-    let submodule = pyo3::wrap_pymodule!(nautilus_dydx::python::dydx);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "dydx")]
+    {
+        let n = "dydx";
+        let submodule = pyo3::wrap_pymodule!(nautilus_dydx::python::dydx);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
     let n = "hyperliquid";
     let submodule = pyo3::wrap_pymodule!(nautilus_hyperliquid::python::hyperliquid);
     m.add_wrapped(submodule)?;
     sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
 
-    let n = "kraken";
-    let submodule = pyo3::wrap_pymodule!(nautilus_kraken::python::kraken);
+    #[cfg(feature = "kraken")]
+    {
+        let n = "kraken";
+        let submodule = pyo3::wrap_pymodule!(nautilus_kraken::python::kraken);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
+
+    #[cfg(feature = "lighter")]
+    {
+        let n = "lighter";
+        let submodule = pyo3::wrap_pymodule!(nautilus_lighter::python::lighter);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
+
+    #[cfg(feature = "interactive-brokers")]
+    {
+        let n = "interactive_brokers";
+        let submodule =
+            pyo3::wrap_pymodule!(nautilus_interactive_brokers::python::interactive_brokers);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
+
+    let n = "futu";
+    let submodule = pyo3::wrap_pymodule!(nautilus_futu::python::futu);
     m.add_wrapped(submodule)?;
     sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
 
-    let n = "lighter";
-    let submodule = pyo3::wrap_pymodule!(nautilus_lighter::python::lighter);
+    let n = "qmt";
+    let submodule = pyo3::wrap_pymodule!(nautilus_qmt::python::qmt);
     m.add_wrapped(submodule)?;
     sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
 
-    let n = "interactive_brokers";
-    let submodule = pyo3::wrap_pymodule!(nautilus_interactive_brokers::python::interactive_brokers);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "okx")]
+    {
+        let n = "okx";
+        let submodule = pyo3::wrap_pymodule!(nautilus_okx::python::okx);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
-    let n = "okx";
-    let submodule = pyo3::wrap_pymodule!(nautilus_okx::python::okx);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
-
-    let n = "polymarket";
-    let submodule = pyo3::wrap_pymodule!(nautilus_polymarket::python::polymarket);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "polymarket")]
+    {
+        let n = "polymarket";
+        let submodule = pyo3::wrap_pymodule!(nautilus_polymarket::python::polymarket);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
     let n = "sandbox";
     let submodule = pyo3::wrap_pymodule!(nautilus_sandbox::python::sandbox);
     m.add_wrapped(submodule)?;
     sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
 
-    let n = "tardis";
-    let submodule = pyo3::wrap_pymodule!(nautilus_tardis::python::tardis);
-    m.add_wrapped(submodule)?;
-    sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    #[cfg(feature = "tardis")]
+    {
+        let n = "tardis";
+        let submodule = pyo3::wrap_pymodule!(nautilus_tardis::python::tardis);
+        m.add_wrapped(submodule)?;
+        sys_modules.set_item(format!("{module_name}.{n}"), m.getattr(n)?)?;
+    }
 
     #[cfg(feature = "defi")]
     {
